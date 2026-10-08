@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Карточки</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#f2f2f7; --card:#fff; --text:#1c1c1e; --muted:#8e8e93;
+  --accent:#4f46e5; --accent-soft:#eef2ff; --border:#e5e5ea;
+  --ok:#16a34a; --bad:#dc2626; --ok-bg:#dcfce7; --bad-bg:#fee2e2;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#000; --card:#1c1c1e; --text:#fff; --muted:#98989d;
+    --accent:#6366f1; --accent-soft:#1e1b4b; --border:#2c2c2e;
+    --ok:#4ade80; --bad:#f87171; --ok-bg:#052e16; --bad-bg:#450a0a;
+    --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+  background:var(--bg); color:var(--text); font-size:16px;
+  overscroll-behavior-y:none;
+}
+#app{max-width:640px;margin:0 auto;min-height:100%;position:relative}
+
+/* ---------- Экраны ---------- */
+.screen{display:none;flex-direction:column;min-height:100vh;padding-bottom:96px}
+.screen.active{display:flex}
+
+header{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;position:sticky;top:0;z-index:10;
+  background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:saturate(180%) blur(20px);
+  -webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--border);
+}
+header h1{font-size:19px;margin:0;flex:1;font-weight:700;letter-spacing:-.3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.back,.icon-btn{
+  background:none;border:none;color:var(--accent);font-size:22px;
+  padding:4px 8px;cursor:pointer;line-height:1;border-radius:8px;
+}
+.icon-btn{color:var(--muted);font-size:20px}
+.back:active,.icon-btn:active{background:var(--border)}
+
+.content{padding:16px;flex:1}
+
+/* ---------- Список разделов ---------- */
+.deck-item{
+  display:flex;align-items:center;gap:8px;
+  background:var(--card);border-radius:14px;padding:16px;
+  margin-bottom:10px;box-shadow:var(--shadow);cursor:pointer;
+  transition:transform .12s;
+}
+.deck-item:active{transform:scale(.98)}
+.deck-info{flex:1;min-width:0}
+.deck-name{font-weight:600;font-size:17px;margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.deck-sub{font-size:13px;color:var(--muted)}
+
+.empty{
+  text-align:center;color:var(--muted);padding:60px 24px;
+  font-size:15px;line-height:1.6;
+}
+
+/* ---------- FAB ---------- */
+.fab{
+  position:fixed;bottom:24px;right:24px;width:60px;height:60px;
+  border-radius:50%;background:var(--accent);color:#fff;border:none;
+  font-size:32px;line-height:1;cursor:pointer;box-shadow:0 6px 20px rgba(79,70,229,.4);
+  display:flex;align-items:center;justify-content:center;padding-bottom:4px;
+  z-index:20;transition:transform .12s;
+}
+.fab:active{transform:scale(.92)}
+@media(min-width:680px){.fab{right:calc(50% - 320px + 24px)}}
+
+/* ---------- Кнопки ---------- */
+.btn-primary{
+  display:block;width:100%;padding:16px;border-radius:14px;border:none;
+  background:var(--accent);color:#fff;font-size:17px;font-weight:600;
+  cursor:pointer;margin:0 0 16px;transition:transform .12s,opacity .12s;
+}
+.btn-primary:active{transform:scale(.98);opacity:.9}
+.btn-primary:disabled{opacity:.4}
+.btn-secondary{
+  display:block;width:100%;padding:14px;border-radius:14px;
+  background:var(--card);color:var(--text);border:1px solid var(--border);
+  font-size:16px;font-weight:500;cursor:pointer;margin-bottom:10px;
+}
+
+/* ---------- Статистика ---------- */
+.stats{
+  background:var(--card);border-radius:14px;padding:14px 16px;
+  font-size:14px;color:var(--muted);margin-bottom:16px;
+  box-shadow:var(--shadow);line-height:1.6;
+}
+
+/* ---------- Список карточек ---------- */
+.card-row{
+  display:flex;align-items:center;gap:10px;
+  background:var(--card);border-radius:12px;padding:14px 16px;
+  margin-bottom:8px;box-shadow:var(--shadow);cursor:pointer;
+}
+.card-row:active{background:var(--accent-soft)}
+.card-row-main{flex:1;min-width:0}
+.card-row-prompt{font-weight:600;font-size:15px;margin-bottom:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-row-answer{font-size:13px;color:var(--muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-row-badge{font-size:11px;padding:3px 8px;border-radius:20px;
+  background:var(--accent-soft);color:var(--accent);font-weight:600;white-space:nowrap}
+
+/* ---------- Обучение ---------- */
+.study-wrap{padding:20px 16px;display:flex;flex-direction:column;flex:1}
+.study-label{font-size:13px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.5px;font-weight:600;margin-bottom:10px}
+.study-prompt{
+  background:var(--card);border-radius:18px;padding:32px 20px;
+  font-size:28px;font-weight:600;text-align:center;line-height:1.35;
+  box-shadow:var(--shadow);margin-bottom:24px;word-break:break-word;
+}
+.study-field{
+  width:100%;padding:16px;border-radius:14px;border:2px solid var(--border);
+  background:var(--card);color:var(--text);font-size:18px;
+  font-family:inherit;outline:none;transition:border-color .15s;
+  margin-bottom:14px;text-align:center;
+}
+.study-field:focus{border-color:var(--accent)}
+.study-field:disabled{opacity:.7}
+.study-field.ok{border-color:var(--ok);background:var(--ok-bg)}
+.study-field.bad{border-color:var(--bad);background:var(--bad-bg)}
+
+.result{border-radius:14px;padding:16px;margin-bottom:16px;font-size:15px;
+  line-height:1.55;text-align:center;font-weight:500}
+.result.ok{background:var(--ok-bg);color:var(--ok)}
+.result.bad{background:var(--bad-bg);color:var(--bad)}
+.result b{font-size:19px;font-weight:700;word-break:break-word}
+
+.rating-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:auto}
+.rate{
+  padding:12px 4px;border-radius:12px;border:none;cursor:pointer;
+  font-size:13px;font-weight:600;color:#fff;line-height:1.35;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  transition:transform .1s;
+}
+.rate:active{transform:scale(.94)}
+.rate span{font-size:11px;opacity:.85;font-weight:500}
+.rate.again{background:#dc2626}
+.rate.hard{background:#ea580c}
+.rate.good{background:#16a34a}
+.rate.easy{background:#2563eb}
+
+.progress-bar{
+  flex:1;height:6px;border-radius:3px;background:var(--border);overflow:hidden;
+}
+.progress-fill{height:100%;background:var(--accent);transition:width .3s;border-radius:3px}
+
+.done-screen{text-align:center;padding:60px 24px}
+.done-emoji{font-size:64px;margin-bottom:16px}
+.done-title{font-size:22px;font-weight:700;margin-bottom:8px}
+.done-sub{color:var(--muted);font-size:15px;line-height:1.6;margin-bottom:32px}
+
+/* ---------- Модальные окна ---------- */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;
+  display:flex;align-items:flex-end;justify-content:center;
+  animation:fadeIn .18s;
+}
+.overlay.hidden{display:none}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet{
+  background:var(--card);width:100%;max-width:640px;
+  border-radius:20px 20px 0 0;padding:20px;
+  max-height:90vh;overflow-y:auto;
+  animation:slideUp .22s cubic-bezier(.2,.9,.3,1);
+  padding-bottom:calc(20px + env(safe-area-inset-bottom));
+}
+.sheet-title{font-size:18px;font-weight:700;margin-bottom:16px;text-align:center}
+.sheet-btn{
+  display:block;width:100%;padding:15px;border-radius:12px;border:none;
+  background:var(--bg);color:var(--text);font-size:16px;font-weight:500;
+  cursor:pointer;margin-bottom:8px;font-family:inherit;
+}
+.sheet-btn:active{opacity:.7}
+.sheet-btn.danger{color:var(--bad)}
+.sheet-btn.cancel{background:transparent;color:var(--muted);font-weight:400}
+.field-label{display:block;font-size:13px;color:var(--muted);
+  margin-bottom:6px;margin-top:14px;font-weight:600}
+.field{
+  width:100%;padding:14px;border-radius:12px;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--text);font-size:16px;
+  font-family:inherit;outline:none;
+}
+.field:focus{border-color:var(--accent)}
+.hint{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ЭКРАН: список разделов -->
+  <section id="screen-decks" class="screen active">
+    <header>
+      <h1>Мои разделы</h1>
+      <button class="icon-btn" onclick="openSettings()">⚙</button>
+    </header>
+    <div class="content">
+      <div id="decks-list"></div>
+    </div>
+    <button class="fab" onclick="openDeckModal()">+</button>
+  </section>
+
+  <!-- ЭКРАН: раздел -->
+  <section id="screen-deck" class="screen">
+    <header>
+      <button class="back" onclick="showScreen('decks');renderDecks()">‹</button>
+      <h1 id="deck-title"></h1>
+      <button class="icon-btn" onclick="deckMenu()">⋯</button>
+    </header>
+    <div class="content">
+      <div class="stats" id="deck-stats"></div>
+      <button class="btn-primary" id="study-btn" onclick="startStudy()">Учить</button>
+      <div id="cards-list"></div>
+    </div>
+    <button class="fab" onclick="openCardModal()">+</button>
+  </section>
+
+  <!-- ЭКРАН: обучение -->
+  <section id="screen-study" class="screen">
+    <header>
+      <button class="back" onclick="exitStudy()">✕</button>
+      <div class="progress-bar"><div class="progress-fill" id="study-progress"></div></div>
+    </header>
+    <div class="study-wrap" id="study-wrap"></div>
+  </section>
+
+</div>
+
+<div class="overlay hidden" id="overlay" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script>
+/* =========================================================
+   ХРАНИЛИЩЕ
+   ========================================================= */
+const STORAGE_KEY = 'flashcards_v1';
+const MIN = 60000, HOUR = 3600000, DAY = 86400000;
+
+let state = { decks: [] };
+let currentDeckId = null;
+let session = null;
+
+function uid(){ return Math.random().toString(36).slice(2,10) + Date.now().toString(36); }
+function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){ alert('Не удалось сохранить данные'); } }
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    state = raw ? JSON.parse(raw) : { decks: [] };
+    if(!Array.isArray(state.decks)) state.decks = [];
+  }catch(e){ state = { decks: [] }; }
+}
+function getDeck(id){ return state.decks.find(d => d.id === id); }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+/* =========================================================
+   АЛГОРИТМ ПОВТОРЕНИЯ (упрощённый SM-2, как в Anki)
+   Рейтинги: 0 = Заново, 1 = Трудно, 2 = Хорошо, 3 = Легко
+   ========================================================= */
+function schedule(card, rating){
+  const now = Date.now();
+
+  if (rating === 0){                 // Заново — сброс
+    card.lapses++;
+    card.reps = 0;
+    card.interval = 0;
+    card.ease = Math.max(1.3, card.ease - 0.2);
+    card.due = now + 1 * MIN;        // вернётся через минуту
+    return;
+  }
+
+  if (card.reps === 0){              // новая карточка
+    card.interval = rating === 1 ? 0.5 : rating === 2 ? 1 : 4;
+  } else if (card.reps === 1){
+    card.interval = rating === 1 ? 1 : rating === 2 ? 3 : 7;
+  } else {
+    const mult = rating === 1 ? 1.2 : rating === 2 ? card.ease : card.ease * 1.3;
+    card.interval = Math.max(1, card.interval * mult);
+  }
+
+  const easeDelta = rating === 1 ? -0.15 : rating === 3 ? 0.15 : 0;
+  card.ease = Math.min(2.8, Math.max(1.3, card.ease + easeDelta));
+
+  card.reps++;
+  card.due = now + card.interval * DAY;
+}
+
+function fmtDur(ms){
+  if (ms < HOUR) return Math.max(1, Math.round(ms / MIN)) + ' мин';
+  if (ms < DAY)  return Math.round(ms / HOUR) + ' ч';
+  const d = Math.round(ms / DAY);
+  if (d < 30) return d + ' дн';
+  const m = Math.round(d / 30);
+  if (m < 12) return m + ' мес';
+  return (d / 365).toFixed(1) + ' г';
+}
+function previewInterval(card, rating){
+  const clone = Object.assign({}, card);
+  schedule(clone, rating);
+  return fmtDur(clone.due - Date.now());
+}
+
+/* =========================================================
+   НАВИГАЦИЯ
+   ========================================================= */
+function showScreen(name){
+  document.querySelectorAll('.screen').forEach(s =>
+    s.classList.toggle('active', s.id === 'screen-' + name)
+  );
+  window.scrollTo(0, 0);
+}
+
+/* =========================================================
+   МОДАЛЬНЫЕ ОКНА
+   ========================================================= */
+function openSheet(html){
+  document.getElementById('sheet').innerHTML = html;
+  document.getElementById('overlay').classList.remove('hidden');
+}
+function closeSheet(){
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+/* =========================================================
+   ЭКРАН: СПИСОК РАЗДЕЛОВ
+   ========================================================= */
+function renderDecks(){
+  const list = document.getElementById('decks-list');
+  if (state.decks.length === 0){
+    list.innerHTML = '<div class="empty">Пока нет ни одного раздела.<br>Нажми <b>+</b>, чтобы создать первый.</div>';
+    return;
+  }
+  const now = Date.now();
+  list.innerHTML = state.decks.map(d => {
+    const due = d.cards.filter(c => c.due <= now).length;
+    const sub = d.cards.length + ' карт.' + (due ? ' · <b style="color:var(--accent)">' + due + ' к повторению</b>' : '');
+    return `<div class="deck-item" onclick="openDeck('${d.id}')">
+      <div class="deck-info">
+        <div class="deck-name">${escapeHtml(d.name)}</div>
+        <div class="deck-sub">${sub}</div>
+      </div>
+      <button class="icon-btn" onclick="event.stopPropagation();deckMenu('${d.id}')">⋯</button>
+    </div>`;
+  }).join('');
+}
+
+function openDeckModal(){
+  openSheet(`
+    <div class="sheet-title">Новый раздел</div>
+    <input id="deck-name-input" class="field" placeholder="Например: Турецкий язык" autofocus>
+    <div class="hint">Раздел — это папка для карточек. Например «Английский», «Формулы», «Имена коллег».</div>
+    <button class="btn-primary" style="margin-top:16px" onclick="createDeck()">Создать</button>
+    <button class="sheet-btn cancel" onclick="closeSheet()">Отмена</button>
+  `);
+  setTimeout(() => document.getElementById('deck-name-input').focus(), 100);
+}
+function createDeck(){
+  const input = document.getElementById('deck-name-input');
+  const name = input.value.trim();
+  if (!name){ alert('Введи название'); return; }
+  const deck = { id: uid(), name, cards: [] };
+  state.decks.push(deck);
+  save(); closeSheet(); renderDecks();
+}
+
+function deckMenu(id){
+  const d = getDeck(id);
+  if (!d) return;
+  openSheet(`
+    <div class="sheet-title">${escapeHtml(d.name)}</div>
+    <button class="sheet-btn" onclick="renameDeck('${id}')">✏️ Переименовать</button>
+    <button class="sheet-btn danger" onclick="deleteDeck('${id}')">🗑 Удалить раздел</button>
+    <button class="sheet-btn cancel" onclick="closeSheet()">Отмена</button>
+  `);
+}
+function renameDeck(id){
+  const d = getDeck(id);
+  const name = prompt('Новое название раздела:', d.name);
+  if (name && name.trim()){
+    d.name = name.trim();
+    save(); renderDecks();
+    if (currentDeckId === id) renderDeckScreen();
+  }
+  closeSheet();
+}
+function deleteDeck(id){
+  const d = getDeck(id);
+  if (!confirm(`Удалить раздел «${d.name}» и все ${d.cards.length} карточек? Это необратимо.`)) return;
+  state.decks = state.decks.filter(x => x.id !== id);
+  save(); closeSheet();
+  if (currentDeckId === id){ currentDeckId = null; showScreen('decks'); }
+  renderDecks();
+}
+
+/* =========================================================
+   ЭКРАН: РАЗДЕЛ
+   ========================================================= */
+function openDeck(id){
+  currentDeckId = id;
+  renderDeckScreen();
+  showScreen('deck');
+}
+
+function renderDeckScreen(){
+  const deck = getDeck(currentDeckId);
+  if (!deck) return;
+  document.getElementById('deck-title').textContent = deck.name;
+
+  const now = Date.now();
+  const due = deck.cards.filter(c => c.due <= now).length;
+  const newc = deck.cards.filter(c => c.reps === 0).length;
+  const learned = deck.cards.filter(c => c.reps > 0).length;
+
+  document.getElementById('deck-stats').innerHTML =
+    `Всего карточек: <b>${deck.cards.length}</b><br>` +
+    `К повторению сейчас: <b>${due}</b> · новых: ${newc} · в процессе: ${learned}`;
+
+  const btn = document.getElementById('study-btn');
+  btn.disabled = due === 0;
+  btn.textContent = due === 0
+    ? (deck.cards.length === 0 ? 'Сначала добавь карточки' : 'На сегодня всё 🎉')
+    : `Учить (${due})`;
+
+  const list = document.getElementById('cards-list');
+  if (deck.cards.length === 0){
+    list.innerHTML = '<div class="empty">В этом разделе пока нет карточек.<br>Нажми <b>+</b>, чтобы добавить первую.</div>';
+    return;
+  }
+  list.innerHTML = deck.cards.map(c => {
+    let badge = '';
+    if (c.reps === 0) badge = '<span class="card-row-badge">новая</span>';
+    else if (c.due <= now) badge = '<span class="card-row-badge">к повтору</span>';
+    return `<div class="card-row" onclick="openCardModal('${c.id}')">
+      <div class="card-row-main">
+        <div class="card-row-prompt">${escapeHtml(c.prompt)}</div>
+        <div class="card-row-answer">${escapeHtml(c.answer)}</div>
+      </div>
+      ${badge}
+    </div>`;
+  }).join('');
+}
+
+/* =========================================================
+   КАРТОЧКИ: создание / редактирование / удаление
+   ========================================================= */
+function openCardModal(cardId){
+  const deck = getDeck(currentDeckId);
+  const card = cardId ? deck.cards.find(c => c.id === cardId) : null;
+  const p = card ? escapeHtml(card.prompt) : '';
+  const a = card ? escapeHtml(card.answer) : '';
+  openSheet(`
+    <div class="sheet-title">${card ? 'Редактировать карточку' : 'Новая карточка'}</div>
+    <label class="field-label">Подсказка (то, что увидишь)</label>
+    <input id="card-prompt" class="field" value="${p}" placeholder="Например: крыло">
+    <label class="field-label">Правильный ответ</label>
+    <input id="card-answer" class="field" value="${a}" placeholder="Например: ala"
+           autocapitalize="off" autocorrect="off" spellcheck="false">
+    <div class="hint">Проверка строгая: регистр и все символы должны совпасть точно.</div>
+    <button class="btn-primary" style="margin-top:16px" onclick="saveCard('${cardId || ''}')">Сохранить</button>
+    ${card ? `<button class="sheet-btn danger" onclick="deleteCard('${cardId}')">Удалить карточку</button>` : ''}
+    <button class="sheet-btn cancel" onclick="closeSheet()">Отмена</button>
+  `);
+  setTimeout(() => document.getElementById('card-prompt').focus(), 100);
+}
+
+function saveCard(cardId){
+  const deck = getDeck(currentDeckId);
+  const prompt = document.getElementById('card-prompt').value.trim();
+  const answer = document.getElementById('card-answer').value.trim();
+  if (!prompt || !answer){ alert('Заполни оба поля'); return; }
+
+  if (cardId){
+    const c = deck.cards.find(x => x.id === cardId);
+    if (c){ c.prompt = prompt; c.answer = answer; }
+  } else {
+    deck.cards.push({
+      id: uid(), prompt, answer,
+      interval: 0, ease: 2.5, due: Date.now(), reps: 0, lapses: 0
+    });
+  }
+  save(); closeSheet(); renderDeckScreen();
+}
+
+function deleteCard(cardId){
+  if (!confirm('Удалить карточку?')) return;
+  const deck = getDeck(currentDeckId);
+  deck.cards = deck.cards.filter(c => c.id !== cardId);
+  save(); closeSheet(); renderDeckScreen();
+}
+
+/* =========================================================
+   ОБУЧЕНИЕ
+   ========================================================= */
+function startStudy(){
+  const deck = getDeck(currentDeckId);
+  const now = Date.now();
+  const due = deck.cards.filter(c => c.due <= now);
+
+  if (due.length === 0){ alert('На сегодня всё! 🎉'); return; }
+
+  // перемешиваем
+  for (let i = due.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [due[i], due[j]] = [due[j], due[i]];
+  }
+
+  session = {
+    queue: due,
+    current: null,
+    answered: false,
+    done: 0,
+    correct: 0
+  };
+  showScreen('study');
+  nextCard();
+}
+
+function nextCard(){
+  if (session.queue.length === 0){ finishStudy(); return; }
+  session.current = session.queue.shift();
+  session.answered = false;
+  renderStudy();
+}
+
+function renderStudy(){
+  const c = session.current;
+  const total = session.done + session.queue.length + 1;
+  const pct = Math.round((session.done / total) * 100);
+  document.getElementById('study-progress').style.width = pct + '%';
+
+  document.getElementById('study-wrap').innerHTML = `
+    <div class="study-label">Подсказка</div>
+    <div class="study-prompt">${escapeHtml(c.prompt)}</div>
+    <input id="study-input" class="study-field" type="text"
+           autocomplete="off" autocapitalize="off" autocorrect="off"
+           spellcheck="false" placeholder="Твой ответ…">
+    <button class="btn-primary" id="check-btn" onclick="checkAnswer()">Проверить</button>
+    <div id="study-result"></div>
+    <div class="rating-grid" id="rating-grid"></div>
+  `;
+  const input = document.getElementById('study-input');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); checkAnswer(); }
+  });
+  setTimeout(() => input.focus(), 120);
+}
+
+function checkAnswer(){
+  if (session.answered) return;
+  const c = session.current;
+  const input = document.getElementById('study-input');
+  const userAnswer = input.value.trim();          // обрезаем только внешние пробелы
+  const correct = userAnswer === c.answer;        // регистр и все символы — строго
+
+  session.answered = true;
+  if (correct) session.correct++;
+
+  input.disabled = true;
+  input.classList.add(correct ? 'ok' : 'bad');
+  document.getElementById('check-btn').style.display = 'none';
+
+  document.getElementById('study-result').innerHTML = correct
+    ? '<div class="result ok">✅ Верно</div>'
+    : `<div class="result bad">❌ Ошибка<br>Правильный ответ: <b>${escapeHtml(c.answer)}</b></div>`;
+
+  const labels = [
+    { r:0, t:'Заново',  cls:'again' },
+    { r:1, t:'Трудно',  cls:'hard'  },
+    { r:2, t:'Хорошо',  cls:'good'  },
+    { r:3, t:'Легко',   cls:'easy'  }
+  ];
+  document.getElementById('rating-grid').innerHTML = labels.map(l =>
+    `<button class="rate ${l.cls}" onclick="rate(${l.r})">
+       ${l.t}<span>${previewInterval(c, l.r)}</span>
+     </button>`
+  ).join('');
+}
+
+function rate(rating){
+  const c = session.current;
+  schedule(c, rating);
+  save();
+
+  if (rating === 0){
+    // вернуть карточку в конец очереди, чтобы она повторилась в этой сессии
+    session.queue.push(c);
+  } else {
+    session.done++;
+  }
+  nextCard();
+}
+
+function finishStudy(){
+  const total = session.done;
+  const acc = total > 0 ? Math.round((session.correct / total) * 100) : 0;
+  document.getElementById('study-progress').style.width = '100%';
+  document.getElementById('study-wrap').innerHTML = `
+    <div class="done-screen">
+      <div class="done-emoji">🎉</div>
+      <div class="done-title">Сессия завершена</div>
+      <div class="done-sub">
+        Повторено карточек: <b>${total}</b><br>
+        Правильных с первого раза: <b>${session.correct}</b> (${acc}%)
+      </div>
+      <button class="btn-primary" onclick="exitStudy()">Готово</button>
+    </div>
+  `;
+  session = null;
+}
+
+function exitStudy(){
+  session = null;
+  renderDeckScreen();
+  showScreen('deck');
+}
+
+/* =========================================================
+   НАСТРОЙКИ / ЭКСПОРТ / ИМПОРТ
+   ========================================================= */
+function openSettings(){
+  openSheet(`
+    <div class="sheet-title">Настройки</div>
+    <button class="sheet-btn" onclick="exportData()">⬇️ Экспорт всех данных (JSON)</button>
+    <button class="sheet-btn" onclick="document.getElementById('import-file').click()">⬆️ Импорт из файла</button>
+    <div class="hint" style="margin:12px 0 8px">
+      Данные хранятся только в этом браузере. Если очистишь данные сайта — они пропадут.
+      Делай экспорт время от времени для бэкапа.
+    </div>
+    <button class="sheet-btn danger" onclick="wipeAll()">🗑 Удалить ВСЁ</button>
+    <button class="sheet-btn cancel" onclick="closeSheet()">Закрыть</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  `);
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'flashcards-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importData(ev){
+  const file = ev.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try{
+      const data = JSON.parse(e.target.result);
+      if (!data || !Array.isArray(data.decks)) throw new Error('bad');
+      if (!confirm('Заменить текущие данные данными из файла?')) return;
+      state = data;
+      save(); closeSheet(); renderDecks();
+      alert('Импорт завершён: ' + data.decks.length + ' разделов.');
+    }catch(err){ alert('Не удалось прочитать файл'); }
+  };
+  reader.readAsText(file);
+}
+
+function wipeAll(){
+  if (!confirm('Удалить ВСЕ разделы и карточки без возможности восстановления?')) return;
+  if (!confirm('Точно? Это последнее предупреждение.')) return;
+  state = { decks: [] };
+  save(); closeSheet(); renderDecks();
+  showScreen('decks');
+}
+
+/* =========================================================
+   СТАРТ
+   ========================================================= */
+load();
+renderDecks();
+
+// Регистрация service worker (работает только по http/https, не по file://)
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+  </html>
